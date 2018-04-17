@@ -3,4 +3,5 @@ name = "panic_barrier"
 version = "0.1.0"
 authors = ["Alex Sayers <alex.sayers@gmail.com>"]
 
-[dependencies]
+[dev-dependencies]
+lazy_static = "1.0"
