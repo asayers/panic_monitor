@@ -35,8 +35,8 @@ fn main() {
 
 use std::collections::HashSet;
 use std::panic;
-use std::thread::{self, ThreadId};
 use std::sync::*;
+use std::thread::{self, ThreadId};
 use std::time::*;
 
 const POISON_MSG: &str = "panic_barrier: Inner lock poisoned (please submit a bug report)";
