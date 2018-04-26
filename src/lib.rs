@@ -105,4 +105,13 @@ impl PanicBarrier {
             if res.timed_out() { return vec![]; }
         }
     }
+
+    /// Check if any of the specified threads have panicked.  This function will not normally
+    /// block.
+    pub fn check(&self, watch_list: &[ThreadId]) -> Vec<ThreadId> {
+        let watch_list: HashSet<ThreadId> = watch_list.into_iter()
+                .map(|x| x.clone()).collect();
+        let panicked = self.panicked.lock().expect(POISON_MSG);
+        watch_list.intersection(&panicked).map(|x| x.clone()).collect()
+    }
 }
