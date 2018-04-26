@@ -40,7 +40,7 @@ use std::sync::*;
 use std::time::*;
 
 pub struct PanicBarrier {
-    panicked: Mutex<HashSet<ThreadId>>,   // Threads which have panicked
+    panicked: Mutex<HashSet<ThreadId>>,   // All threads which have historically panicked
     cvar: Condvar,
 }
 
@@ -64,7 +64,12 @@ impl PanicBarrier {
         }));
     }
 
-    /// Block the current thread until some other thread panics.
+    /// Block the current thread until one of the watched threads panic.  The returned vector will
+    /// always be non-empty.
+    ///
+    /// Note that this function returns as soon as one or more of the threads on the watch list has
+    /// panicked.  This means that if you specify a thread which has already panicked, this
+    /// function will return immediately.  Think of it as level-triggered, not edge-triggered.
     pub fn wait(&self, watch_list: &[ThreadId]) -> Vec<ThreadId> {
         let mut panicked = self.panicked.lock().unwrap();
 
@@ -79,7 +84,12 @@ impl PanicBarrier {
         }
     }
 
-    /// Block the current thread until some other thread panics.
+    /// Block the current thread until one of the watched threads panic, or the timeout expires.
+    /// The returned vector will be empty if and only if the timeout expired.
+    ///
+    /// Note that this function returns as soon as one or more of the threads on the watch list has
+    /// panicked.  This means that if you specify a thread which has already panicked, this
+    /// function will return immediately.  Think of it as level-triggered, not edge-triggered.
     pub fn wait_timeout(&self, watch_list: &[ThreadId], dur: Duration) -> Vec<ThreadId> {
         let mut panicked = self.panicked.lock().unwrap();
 
