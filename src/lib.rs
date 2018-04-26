@@ -71,16 +71,15 @@ impl PanicBarrier {
     /// panicked.  This means that if you specify a thread which has already panicked, this
     /// function will return immediately.  Think of it as level-triggered, not edge-triggered.
     pub fn wait(&self, watch_list: &[ThreadId]) -> Vec<ThreadId> {
+        let watch_list: HashSet<ThreadId> = watch_list.into_iter()
+                .map(|x| x.clone()).collect();
         let mut panicked = self.panicked.lock().unwrap();
 
-        let watch_list: HashSet<ThreadId> = watch_list.into_iter().map(|x|x.clone()).collect();
-        let watched_panicked: Vec<ThreadId> = watch_list.intersection(&panicked).map(|x|x.clone()).collect();
-        if watched_panicked.len() > 0 { return watched_panicked; }
-
         loop {
-            panicked = self.cvar.wait(panicked).unwrap();
-            let watched_panicked: Vec<ThreadId> = watch_list.intersection(&panicked).map(|x|x.clone()).collect();
+            let watched_panicked: Vec<ThreadId> = watch_list.intersection(&panicked)
+                    .map(|x| x.clone()).collect();
             if watched_panicked.len() > 0 { return watched_panicked; }
+            panicked = self.cvar.wait(panicked).unwrap();
         }
     }
 
@@ -91,17 +90,17 @@ impl PanicBarrier {
     /// panicked.  This means that if you specify a thread which has already panicked, this
     /// function will return immediately.  Think of it as level-triggered, not edge-triggered.
     pub fn wait_timeout(&self, watch_list: &[ThreadId], dur: Duration) -> Vec<ThreadId> {
+        let watch_list: HashSet<ThreadId> = watch_list.into_iter()
+                .map(|x| x.clone()).collect();
         let mut panicked = self.panicked.lock().unwrap();
 
-        let watch_list: HashSet<ThreadId> = watch_list.into_iter().map(|x|x.clone()).collect();
-        let watched_panicked: Vec<ThreadId> = watch_list.intersection(&panicked).map(|x|x.clone()).collect();
-        if watched_panicked.len() > 0 { return watched_panicked; }
-
         loop {
+            let watched_panicked: Vec<ThreadId> = watch_list.intersection(&panicked)
+                    .map(|x| x.clone()).collect();
+            if watched_panicked.len() > 0 { return watched_panicked; }
             let (guard, res) = self.cvar.wait_timeout(panicked, dur).unwrap();
             panicked = guard;
-            let watched_panicked: Vec<ThreadId> = watch_list.intersection(&panicked).map(|x|x.clone()).collect();
-            if watched_panicked.len() > 0 || res.timed_out() { return watched_panicked; }
+            if res.timed_out() { return vec![]; }
         }
     }
 }
