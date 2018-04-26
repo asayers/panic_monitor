@@ -2,39 +2,59 @@
                                  panic_barrier
                                  =============
 
-Create a global panic barrier using lazy_static, and initialise it from your
-main thread.  After that, any thread can use the barrier to wait for threads to
-panic.  Each call to PanicBarrier::wait() can specify a different set of
-watched threads.
+    panic_barrier helps you monitor your threads and deal with panics.  You
+    might be tempted to use libstd's JoinHandles for this use-case; however,
+    they have two major limitations:
 
-    lazy_static! {
-        static ref PANIC_BARRIER: PanicBarrier = PanicBarrier::new();
-    }
+     * JoinHandles are not Clone.  This means that if you want multiple threads
+       to be notified when a particular thread panics, you can't use its
+       JoinHandle to achieve this.
+     * JoinHandle::join() blocks the current thread, and there is no "epoll for
+       JoinHandles".  This means that if you want to monitor multiple threads
+       from a single "watchdog" thread, you can't use JoinHandles to achieve
+       this.
 
-    fn main() {
-        // Initialise the PanicBarrier
-        PANIC_BARRIER.init();
+    panic_barrier solves both of these issues.  PanicBarrier::wait() allows you
+    to specify a number of threads, and it returns if any of the given threads
+    panic.  Threads are specified by their ThreadId (which is Clone), meaning
+    that mulitple threads can monitor the same thread.
 
-        let h1 = thread::spawn(|| {
-            thread::sleep(Duration::from_millis(100));
-            panic!();
-        });
+USAGE
 
-        let h2 = thread::spawn(|| {
-            PANIC_BARRIER.wait(&[h1.thread().id()]);
-            println!("ok!");
-        });
+    Create a global panic barrier using lazy_static, and initialise it from
+    your main thread.  After that, any thread can use the barrier to wait for
+    threads to panic.  Each call to PanicBarrier::wait() can specify a
+    different set of watched threads.
 
-        h2.join().unwrap();
-    }
+        lazy_static! {
+            static ref PANIC_BARRIER: PanicBarrier = PanicBarrier::new();
+        }
+
+        fn main() {
+            // Initialise the PanicBarrier
+            PANIC_BARRIER.init();
+
+            let h1 = thread::spawn(|| {
+                thread::sleep(Duration::from_millis(100));
+                panic!();
+            });
+
+            let h2 = thread::spawn(|| {
+                PANIC_BARRIER.wait(&[h1.thread().id()]);
+                println!("ok!");
+            });
+
+            h2.join().unwrap();
+        }
 
 LICENCE
 
-Licensed under either of the following, at your option:
+    Licensed under either of the following, at your option:
 
- * Apache Licence 2.0 (see LICENSE-APACHE or http://www.apache.org/licenses/LICENSE-2.0)
- * MIT licence (see LICENSE-MIT or http://opensource.org/licenses/MIT)
+     * Apache Licence 2.0 (see LICENSE-APACHE or http://www.apache.org/licenses/LICENSE-2.0)
+     * MIT licence (see LICENSE-MIT or http://opensource.org/licenses/MIT)
 
-Unless you explicitly state otherwise, any contribution intentionally submitted
-for inclusion in the work by you, as defined in the Apache-2.0 license, shall
-be dual licensed as above, without any additional terms or conditions.
+    Unless you explicitly state otherwise, any contribution intentionally
+    submitted for inclusion in the work by you, as defined in the Apache-2.0
+    license, shall be dual licensed as above, without any additional terms or
+    conditions.
