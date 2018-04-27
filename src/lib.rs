@@ -1,5 +1,13 @@
 /*! A barrier which blocks until a watched thread panics.
 
+Create a global panic barrier using lazy_static, and initialise it from your main thread.  After
+that, any thread can use the barrier to wait for threads to panic.
+
+PanicBarrier::wait() allows you to specify a set of threads to watch, and it returns if any of the
+given threads panic.  Threads are specified by their ThreadId, and since these are Send and Clone,
+a thread can be monitored by mulitple watchdog threads at the same time.  Each call to
+PanicBarrier::wait() can specify a different set of watched threads.
+
 ```
 #[macro_use] extern crate lazy_static;
 extern crate panic_barrier;
