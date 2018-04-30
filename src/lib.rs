@@ -1,12 +1,16 @@
 /*! A barrier which blocks until a watched thread panics.
 
-Create a global panic barrier using lazy_static, and initialise it from your main thread.  After
-that, any thread can use the barrier to wait for threads to panic.
+Create a global panic barrier using `lazy_static`, and initialise it from your main thread.
+Threads can thenceforce use it to wait for other threads to panic.
 
-PanicBarrier::wait() allows you to specify a set of threads to watch, and it returns if any of the
-given threads panic.  Threads are specified by their ThreadId, and since these are Send and Clone,
-a thread can be monitored by mulitple watchdog threads at the same time.  Each call to
-PanicBarrier::wait() can specify a different set of watched threads.
+`PanicBarrier::wait()` allows you to specify a number of threads, and it returns as soon as one of
+them panics.  Threads are specified by their `ThreadId` (which is clonable), meaning that mulitple
+threads can monitor the same thread.  Each call to `PanicBarrier::wait()` can specify a different
+set of watched threads.
+
+When a watched thread panics, you get a `Thread` struct back (which contains the thread's name and
+ID).  In contrast with `JoinHandle::join()`, you *don't* get the value which was passed to
+`panic!()` - this is not possible, given that this value is not required to implement `Clone`.
 
 ```
 #[macro_use] extern crate lazy_static;
@@ -62,8 +66,15 @@ impl PanicBarrier {
         }
     }
 
-    /// Intialise the `PanicBarrier`.  This registers a panic handler which marks the barrier as
-    /// complete and signals all threads waiting on the panic barrier.
+    /// Intialise the `PanicBarrier`.  This registers a panic handler which marks the current
+    /// thread as panicked and signals all threads waiting on the panic barrier.
+    ///
+    /// Initialise the `PanicBarrier` before spawning threads.  A thread which panics before the
+    /// `PanicBarrier` is initialised will not trigger wake-ups.
+    ///
+    /// Calling `PanicBarrier::init()` multiple times is reasonably harmless.  If for some reason
+    /// you want to throw away existing handlers by calling `std::panic::set_hook()`, you can then
+    /// call `PanicBarrier::init()` again to re-add PanicBarrier's hook.
     pub fn init(&'static self) {
         let hook = panic::take_hook();
         panic::set_hook(Box::new(move|x| {

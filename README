@@ -2,59 +2,35 @@
                                  panic_barrier
                                  =============
 
-    panic_barrier helps you monitor your threads and deal with panics.  You
-    might be tempted to use libstd's JoinHandles for this use-case; however,
-    they have two major limitations:
+panic_barrier helps you monitor your threads and deal with panics.  You might
+be tempted to use libstd's JoinHandles for this use-case; however, they have
+two major limitations:
 
-     * JoinHandles are not Clone.  This means that if you want multiple threads
-       to be notified when a particular thread panics, you can't use its
-       JoinHandle to achieve this.
-     * JoinHandle::join() blocks the current thread, and there is no "epoll for
-       JoinHandles".  This means that if you want to monitor multiple threads
-       from a single "watchdog" thread, you can't use JoinHandles to achieve
-       this.
+ * JoinHandle::join() blocks the current thread.  If you want to monitor
+   multiple threads from a single "watchdog" thread, you need something like
+   try_join(), and ideally you'd have an "epoll for JoinHandles" to avoid
+   busy-waiting.  JoinHandle doesn't implement these, however.
+ * You can't clone a JoinHandle.  If you want multiple threads to be notified
+   when a particular thread panics, you can't use its JoinHandle to achieve it.
 
-    panic_barrier solves both of these issues.  PanicBarrier::wait() allows you
-    to specify a number of threads, and it returns if any of the given threads
-    panic.  Threads are specified by their ThreadId (which is Clone), meaning
-    that mulitple threads can monitor the same thread.
+panic_barrier solves both of these issues.  PanicBarrier::wait() allows you to
+specify a number of threads, and it returns as soon as one of them panics.
+Threads are specified by their ThreadId (which is clonable), meaning that
+mulitple threads can monitor the same thread.  Each call to
+PanicBarrier::wait() can specify a different set of watched threads.
 
-USAGE
-
-    Create a global panic barrier using lazy_static, and initialise it from
-    your main thread.  After that, any thread can use the barrier to wait for
-    threads to panic.  Each call to PanicBarrier::wait() can specify a
-    different set of watched threads.
-
-        lazy_static! {
-            static ref PANIC_BARRIER: PanicBarrier = PanicBarrier::new();
-        }
-
-        fn main() {
-            // Initialise the PanicBarrier
-            PANIC_BARRIER.init();
-
-            let h1 = thread::spawn(|| {
-                thread::sleep(Duration::from_millis(100));
-                panic!();
-            });
-
-            let h2 = thread::spawn(|| {
-                PANIC_BARRIER.wait(&[h1.thread().id()]);
-                println!("ok!");
-            });
-
-            h2.join().unwrap();
-        }
+When a watched thread panics, you get a Thread struct back (which contains the
+thread's name and ID).  In contrast with JoinHandle::join(), you *don't* get
+the value which was passed to panic!() - this is not possible, given that this
+value is not required to implement Clone.
 
 LICENCE
 
-    Licensed under either of the following, at your option:
+Licensed under either of the following, at your option:
 
-     * Apache Licence 2.0 (see LICENSE-APACHE or http://www.apache.org/licenses/LICENSE-2.0)
-     * MIT licence (see LICENSE-MIT or http://opensource.org/licenses/MIT)
+ * Apache Licence 2.0 (see LICENSE-APACHE or http://www.apache.org/licenses/LICENSE-2.0)
+ * MIT licence (see LICENSE-MIT or http://opensource.org/licenses/MIT)
 
-    Unless you explicitly state otherwise, any contribution intentionally
-    submitted for inclusion in the work by you, as defined in the Apache-2.0
-    license, shall be dual licensed as above, without any additional terms or
-    conditions.
+Unless you explicitly state otherwise, any contribution intentionally submitted
+for inclusion in the work by you, as defined in the Apache-2.0 license, shall
+be dual licensed as above, without any additional terms or conditions.
