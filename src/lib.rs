@@ -112,7 +112,7 @@ impl PanicBarrier {
     /// Note that this function returns as soon as one or more of the threads on the watch list has
     /// panicked.  This means that if you specify a thread which has already panicked, this
     /// function will return immediately.  Think of it as level-triggered, not edge-triggered.
-    pub fn wait_timeout(&self, watch_list: &[ThreadId], dur: Duration) -> Vec<Thread> {
+    pub fn wait_timeout(&self, watch_list: &[ThreadId], mut dur: Duration) -> Vec<Thread> {
         let mut watched_panicked = vec![];
         let mut panicked = self.panicked.lock().expect(POISON_MSG);
         loop {
@@ -122,9 +122,12 @@ impl PanicBarrier {
                 }
             }
             if watched_panicked.len() > 0 { return watched_panicked; }
+            let now = Instant::now();
             let (guard, res) = self.cvar.wait_timeout(panicked, dur).expect(POISON_MSG);
+            let elapsed = now.elapsed();
             panicked = guard;
-            if res.timed_out() { return vec![]; }
+            if res.timed_out() || elapsed >= dur { return vec![]; }
+            dur -= elapsed; // safe because ^
         }
     }
 
