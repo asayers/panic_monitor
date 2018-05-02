@@ -1,11 +1,11 @@
 /*! A barrier which blocks until a watched thread panics.
 
-Create a global panic barrier using `lazy_static`, and initialise it from your main thread.
+Create a global panic monitor using `lazy_static`, and initialise it from your main thread.
 Threads can thenceforce use it to wait for other threads to panic.
 
-`PanicBarrier::wait()` allows you to specify a number of threads, and it returns as soon as one of
+`PanicMonitor::wait()` allows you to specify a number of threads, and it returns as soon as one of
 them panics.  Threads are specified by their `ThreadId` (which is clonable), meaning that mulitple
-threads can monitor the same thread.  Each call to `PanicBarrier::wait()` can specify a different
+threads can monitor the same thread.  Each call to `PanicMonitor::wait()` can specify a different
 set of watched threads.
 
 When a watched thread panics, you get a `Thread` struct back (which contains the thread's name and
@@ -14,19 +14,19 @@ ID).  In contrast with `JoinHandle::join()`, you *don't* get the value which was
 
 ```
 #[macro_use] extern crate lazy_static;
-extern crate panic_barrier;
+extern crate panic_monitor;
 
-use panic_barrier::PanicBarrier;
+use panic_monitor::PanicMonitor;
 use std::thread;
 use std::time::Duration;
 
 lazy_static! {
-    static ref PANIC_BARRIER: PanicBarrier = PanicBarrier::new();
+    static ref PANIC_MONITOR: PanicMonitor = PanicMonitor::new();
 }
 
 fn main() {
-    // Initialise the PanicBarrier
-    PANIC_BARRIER.init();
+    // Initialise the PanicMonitor
+    PANIC_MONITOR.init();
 
     let h1 = thread::spawn(|| {
         thread::sleep(Duration::from_millis(100));
@@ -34,9 +34,9 @@ fn main() {
     });
 
     let h2 = thread::spawn(move || {
-        PANIC_BARRIER.wait(&[h1.thread().id()]);
+        PANIC_MONITOR.wait(&[h1.thread().id()]);
         // ^ this will block until thread 1 panicks
-        PANIC_BARRIER.wait(&[h1.thread().id()]);
+        PANIC_MONITOR.wait(&[h1.thread().id()]);
         // ^ this will return immediately, since thread 1 is already dead
     });
 
@@ -51,30 +51,30 @@ use std::sync::*;
 use std::thread::{self, Thread, ThreadId};
 use std::time::*;
 
-const POISON_MSG: &str = "panic_barrier: Inner lock poisoned (please submit a bug report)";
+const POISON_MSG: &str = "panic_monitor: Inner lock poisoned (please submit a bug report)";
 
-pub struct PanicBarrier {
+pub struct PanicMonitor {
     panicked: Mutex<HashMap<ThreadId, Thread>>,   // All threads which have historically panicked
     cvar: Condvar,
 }
 
-impl PanicBarrier {
-    pub fn new() -> PanicBarrier {
-        PanicBarrier {
+impl PanicMonitor {
+    pub fn new() -> PanicMonitor {
+        PanicMonitor {
             panicked: Mutex::new(HashMap::new()),
             cvar: Condvar::new(),
         }
     }
 
-    /// Intialise the `PanicBarrier`.  This registers a panic handler which marks the current
-    /// thread as panicked and signals all threads waiting on the panic barrier.
+    /// Intialise the `PanicMonitor`.  This registers a panic handler which marks the current
+    /// thread as panicked and signals all threads waiting on the panic monitor.
     ///
-    /// Initialise the `PanicBarrier` before spawning threads.  A thread which panics before the
-    /// `PanicBarrier` is initialised will not trigger wake-ups.
+    /// Initialise the `PanicMonitor` before spawning threads.  A thread which panics before the
+    /// `PanicMonitor` is initialised will not trigger wake-ups.
     ///
-    /// Calling `PanicBarrier::init()` multiple times is reasonably harmless.  If for some reason
+    /// Calling `PanicMonitor::init()` multiple times is reasonably harmless.  If for some reason
     /// you want to throw away existing handlers by calling `std::panic::set_hook()`, you can then
-    /// call `PanicBarrier::init()` again to re-add PanicBarrier's hook.
+    /// call `PanicMonitor::init()` again to re-add PanicMonitor's hook.
     pub fn init(&'static self) {
         let hook = panic::take_hook();
         panic::set_hook(Box::new(move|x| {

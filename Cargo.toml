@@ -1,5 +1,5 @@
 [package]
-name = "panic_barrier"
+name = "panic_monitor"
 version = "0.1.0"
 authors = ["Alex Sayers <alex.sayers@gmail.com>"]
 

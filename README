@@ -1,8 +1,8 @@
                                  =============
-                                 panic_barrier
+                                 panic_monitor
                                  =============
 
-panic_barrier helps you monitor your threads and deal with panics.  You might
+panic_monitor helps you monitor your threads and deal with panics.  You might
 be tempted to use libstd's JoinHandles for this use-case; however, they have
 two major limitations:
 
@@ -13,11 +13,11 @@ two major limitations:
  * You can't clone a JoinHandle.  If you want multiple threads to be notified
    when a particular thread panics, you can't use its JoinHandle to achieve it.
 
-panic_barrier solves both of these issues.  PanicBarrier::wait() allows you to
+panic_monitor solves both of these issues.  PanicMonitor::wait() allows you to
 specify a number of threads, and it returns as soon as one of them panics.
 Threads are specified by their ThreadId (which is clonable), meaning that
 mulitple threads can monitor the same thread.  Each call to
-PanicBarrier::wait() can specify a different set of watched threads.
+PanicMonitor::wait() can specify a different set of watched threads.
 
 When a watched thread panics, you get a Thread struct back (which contains the
 thread's name and ID).  In contrast with JoinHandle::join(), you *don't* get
