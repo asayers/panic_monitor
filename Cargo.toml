@@ -1,7 +1,7 @@
 [package]
 name = "panic_monitor"
 description = "helps you monitor your threads and deal with panics"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Alex Sayers <alex.sayers@gmail.com>"]
 documentation = "https://docs.rs/panic_monitor/"
 repository = "https://github.com/asayers/panic_monitor"
